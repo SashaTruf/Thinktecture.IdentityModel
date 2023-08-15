@@ -83,12 +83,12 @@ namespace Thinktecture.IdentityModel.EmbeddedSts.WsFed
             var config = new EmbeddedTokenServiceConfiguration();
             var sts = config.CreateSecurityTokenService();
 
-            var appPath = Request.ApplicationPath;
-            if (!appPath.EndsWith("/")) appPath += "/";
-
             // when the reply querystringparameter has been specified, don't overrule it. 
-            if (String.IsNullOrEmpty(signInMsg.Reply))
-                signInMsg.Reply = new Uri(Request.Url, appPath).AbsoluteUri;
+            if (string.IsNullOrEmpty(signInMsg.Reply))
+            {
+                signInMsg.Reply = signInMsg.Realm;
+            }
+
             var response = FederatedPassiveSecurityTokenServiceOperations.ProcessSignInRequest(signInMsg, user, sts);
 
             var body = response.WriteFormPost();
@@ -97,8 +97,7 @@ namespace Thinktecture.IdentityModel.EmbeddedSts.WsFed
 
         private ActionResult ProcessSignOut(SignOutRequestMessage signOutMsg)
         {
-            var appPath = Request.ApplicationPath;
-            if (!appPath.EndsWith("/")) appPath += "/";
+            var appPath = GetAppPath();
 
             var rpUrl = new Uri(Request.Url, appPath);
             var signOutCleanupMsg = new SignOutCleanupRequestMessage(rpUrl);
@@ -112,11 +111,23 @@ namespace Thinktecture.IdentityModel.EmbeddedSts.WsFed
         }
         
         public string WsFederationMetadata()
-        {            
-            var config = new EmbeddedTokenServiceConfiguration();            
-            var uri = new Uri(Request.Url.AbsoluteUri).GetLeftPart(UriPartial.Authority);            
+        {
+            var appPath = GetAppPath();
+            var uri = new Uri(Request.Url, appPath).AbsoluteUri;
             var claims = UserManager.GetAllUniqueClaimTypes();
-            return config.GetFederationMetadata(uri, claims).ToString(SaveOptions.DisableFormatting);            
+
+            var config = new EmbeddedTokenServiceConfiguration();
+            return config.GetFederationMetadata(uri, claims).ToString(SaveOptions.DisableFormatting);
+        }
+
+        private string GetAppPath()
+        {
+            var appPath = Request.ApplicationPath;
+            if (!appPath.EndsWith("/"))
+            {
+                appPath += "/";
+            }
+            return appPath;
         }
     }
 }
